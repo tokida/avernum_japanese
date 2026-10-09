@@ -197,6 +197,11 @@ def _query_windows(kdotool: str, runner: Callable = _run_capture) -> tuple[str, 
         found = runner([kdotool, "search", "--name", "Avernum"], timeout=5)
     except (subprocess.TimeoutExpired, OSError):
         return "unknown", None
+    if found.returncode == 1 and not (found.stdout or "").strip():
+        # kdotool may use exit 1 for an ordinary no-match. Treat that as a
+        # confirmed empty result only if a separate read-only KWin query proves
+        # the session connection is alive; otherwise remain fail-closed.
+        return ("none", None) if _active_window(kdotool, runner) is not None else ("unknown", None)
     if found.returncode != 0:
         return "unknown", None
     ids = list(dict.fromkeys(line.strip() for line in found.stdout.splitlines() if line.strip()))
