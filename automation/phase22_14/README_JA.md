@@ -33,3 +33,34 @@ python3 automation/phase22_14/capture_boot.py --run --activate-game
 ```sh
 python3 -m unittest discover -s automation/phase22_14/tests -v
 ```
+
+## Phase 22.14.1: 起動設定ダイアログの読取専用検出
+
+添付された474x602画像を基準に、Avernumタイトルの単一ウィンドウについてKWin UUID、正確なタイトル、アクティブウィンドウ一致、geometryをkdotoolの読取専用コマンドで照合し、候補操作点を出力します。既定の`--dry-run`と`--plan`は同じ動作です。
+
+```sh
+python3 automation/phase22_14/startup_dialog.py --dry-run
+python3 -m unittest discover -s automation/phase22_14/tests -v
+```
+
+候補点は画面全体の固定座標ではなく、ダイアログ外枠左上を原点にした相対値です。参照外枠はleft=35/top=22/width=400/height=554、内部候補は1024x768=(145,161)、Play Window=(104,441)、Always Start=(104,467)、OK=(347,529)です。KWin geometryの幅・高さが400x554から各8ピクセルを超えて異なる場合はblockedになります。スクリーンショットの1枚から推定した値であり、DPIスケーリングや描画位置を画像認識で照合していません。
+
+設定項目の選択状態はOCR等で確認できず、常に`settings_content_verified=false`、`status=blocked`です。単一ウィンドウ、UUID形式、正確なタイトル、アクティブID一致、geometry一致が揃っても、内容の証拠がないため操作計画は未承認です。このモジュールにクリック・キー入力・フォーカス変更を実行する機能はありません。候補点を実操作に使う前に、画面上で項目状態と座標を別途確認する必要があります。
+
+## Phase 22.14.2: テスト専用の永続Proton prefix
+
+`persistent_test_prefix.py --prepare`は配布元マニフェストと固定EXE/DLL SHAガードを検証し、パッケージを`~/.cache/avernum-jp-smoke/phase22_14/persistent_pilot/`へ私有コピーします。コピー内の`base/run_proton_isolated.sh`だけに、`AVERNUM_JP_TEST_COMPAT_PATH`が指定されている場合はその専用prefixを使う1行パッチを適用します。元の配布元、Steamのゲーム本体、Steam純正prefixは変更しません。
+
+```sh
+python3 automation/phase22_14/persistent_test_prefix.py --prepare
+python3 automation/phase22_14/persistent_test_prefix.py --status
+```
+
+`--run`は明示した場合だけ、準備済みコピーから`run_auto.sh --detect-only --timeout 90`を起動し、`~/.cache/avernum-jp-smoke/phase22_14/persistent_compatdata/`をProton prefixとして渡します。実行は通常のKDE Wayland端末で行ってください。GUIサンドボックスからは実行しません。クリックはdetect-only静的ガードで拒否し、別アプリへのフォーカス変更は行いません。Phase22.13既定動作により、終了時は検証したAvernum窓へ閉じる要求を行う場合があります。
+
+初回は起動時の「Avernum Screen Size」画面が表示され、設定保存のため一度手作業が必要な可能性があります。このツールはその画面を操作せず、設定保存の有効性も未検証です。セーブは新しい専用prefix内だけに作られ、Steam側セーブのコピーや上書きはしません。既存のPhase22.13結果ZIPは起動前にprivate領域へcopy2し、SHA-256とZIP整合性を確認します。バックアップに失敗した場合は起動しません。実行後の結果ZIPもprivate領域へ控えます。
+
+```sh
+python3 automation/phase22_14/persistent_test_prefix.py --run
+python3 -m unittest discover -s automation/phase22_14/tests -v
+```
