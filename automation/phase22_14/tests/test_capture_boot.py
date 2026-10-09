@@ -33,6 +33,35 @@ class CaptureBootTests(unittest.TestCase):
         self.assertEqual(capture.parse_window_candidates("opaque-1\n", {"opaque-1": "Avernum"}), ("unique", "opaque-1"))
         self.assertEqual(capture.parse_window_candidates("opaque-1\nopaque-2\n", {"opaque-1": "Avernum", "opaque-2": "Avernum"}), ("ambiguous", None))
 
+    def test_search_no_match_with_live_kwin_is_none(self):
+        calls = []
+        def runner(command, timeout=8):
+            calls.append(command[1])
+            if command[1] == "search":
+                return SimpleNamespace(returncode=1, stdout="", stderr="")
+            if command[1] == "getactivewindow":
+                return SimpleNamespace(returncode=0, stdout="opaque-active-id\n", stderr="")
+            raise AssertionError("unexpected command")
+        self.assertEqual(capture._query_windows("kdotool", runner), ("none", None))
+        self.assertEqual(calls, ["search", "getactivewindow"])
+
+    def test_search_no_match_with_denied_kwin_is_unknown(self):
+        def runner(command, timeout=8):
+            if command[1] == "search":
+                return SimpleNamespace(returncode=1, stdout="", stderr="")
+            if command[1] == "getactivewindow":
+                return SimpleNamespace(returncode=1, stdout="", stderr="denied")
+            raise AssertionError("unexpected command")
+        self.assertEqual(capture._query_windows("kdotool", runner), ("unknown", None))
+
+    def test_search_other_error_is_unknown_without_fallback(self):
+        calls = []
+        def runner(command, timeout=8):
+            calls.append(command[1])
+            return SimpleNamespace(returncode=2, stdout="", stderr="error")
+        self.assertEqual(capture._query_windows("kdotool", runner), ("unknown", None))
+        self.assertEqual(calls, ["search"])
+
     def test_non_active_or_ambiguous_target_is_not_capture_eligible(self):
         self.assertFalse(capture.screenshot_eligible("unique", "id-a", "id-b"))
         self.assertFalse(capture.screenshot_eligible("ambiguous", "id-a", "id-a"))
