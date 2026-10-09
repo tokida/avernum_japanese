@@ -27,3 +27,15 @@ python3 -m unittest discover -s automation/phase22_13/tests -v
 `runner.py`はdry-runを既定にし、候補資産の存在、GUI/Protonツール、操作計画、検証不能項目を `.relaydeck/phase22_13_dry_run.json` に出力します。ユーザー名、HOME、秘密値、絶対パス、プロセスコマンドラインは記録しません。ゲーム起動とGUI入力は行いません。`--run`は`--timeout`が必須ですが、この試作には安全な起動/入力アダプターがないため、指定してもブロックされます。
 
 クリック証拠は同一run/frame/window/choice、最新イベント番号、現時点のフォーカス、座標、および2秒以内の記録をすべて要求します。古いログの座標は許可しません。日本語表示とクリック結果は証拠が得られるまで「未検証」です。ゲーム本体、DLL、セーブはGitへ追加しないでください。
+
+## ホストKDE診断
+
+通常のKDE Waylandターミナルで次の1コマンドを実行すると、環境の有無と接続前提だけをJSONに記録します。
+
+```sh
+python3 automation/phase22_13/kde_host_probe.py
+```
+
+出力先は `.relaydeck/phase22_13_kde_host_probe.json` です。環境変数の値、ユーザー名、ホーム、ソケットパス、ウィンドウID/タイトル、認証値は記録・表示しません。`kdotool getactivewindow` の標準出力と標準エラーも保存しません。GUI入力は一切試さず、`actual_input_status` は常に `unknown` です。
+
+この結果はスクリプトを実際に実行した環境だけを評価します。RelayDeckや別のサンドボックスで実行した結果はホストKDEセッションの確認にならないため、必ずホストKDEターミナルで再実行してください。
