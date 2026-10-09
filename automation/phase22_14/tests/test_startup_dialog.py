@@ -18,6 +18,20 @@ GOOD_WINDOW = dialog.WindowInfo(
 
 
 class StartupDialogTests(unittest.TestCase):
+    def test_parse_geometry_position_geometry_format(self):
+        self.assertEqual(
+            dialog.parse_geometry("Position: 100, 200\nGeometry: 400x554"),
+            {"x": 100, "y": 200, "width": 400, "height": 554},
+        )
+        self.assertEqual(
+            dialog.parse_geometry("Position: (-35, 22)\nGeometry: 400X554"),
+            {"x": -35, "y": 22, "width": 400, "height": 554},
+        )
+
+    def test_parse_geometry_rejects_unsupported_and_nonpositive_formats(self):
+        self.assertIsNone(dialog.parse_geometry("Position: left,top\nGeometry: wide x tall"))
+        self.assertIsNone(dialog.parse_geometry("Position: 1, 2\nGeometry: 0x554"))
+
     def test_reference_points_are_inside_expected_dialog(self):
         self.assertTrue(all(
             dialog.point_inside_window(point["x"], point["y"], 400, 554)
@@ -45,6 +59,7 @@ class StartupDialogTests(unittest.TestCase):
         )
         multiple = dialog.evaluate_candidate([GOOD_WINDOW, second], GOOD_WINDOW.window_id, wayland_kde=True)
         self.assertIn("multiple_exact_windows", multiple["block_reasons"])
+        self.assertIsNone(multiple["observed_window_dimensions"])
         focus = dialog.evaluate_candidate([GOOD_WINDOW], second.window_id, wayland_kde=True)
         self.assertIn("active_window_mismatch", focus["block_reasons"])
 
@@ -64,7 +79,7 @@ class StartupDialogTests(unittest.TestCase):
     def test_current_window_probe_uses_metadata_queries_only(self):
         calls = []
         def runner(command, timeout=5.0):
-            calls.append(command[1])
+            calls.append(command)
             if command[1] == "search":
                 return SimpleNamespace(returncode=0, stdout="{12345678-1234-1234-1234-123456789abc}\n", stderr="")
             if command[1] == "getwindowname":
@@ -78,8 +93,15 @@ class StartupDialogTests(unittest.TestCase):
         self.assertEqual(status, "ok")
         self.assertEqual(len(windows), 1)
         self.assertEqual(active, "12345678-1234-1234-1234-123456789abc")
-        self.assertEqual(calls, ["search", "getwindowname", "getwindowgeometry", "getactivewindow"])
-        self.assertFalse(any(command in calls for command in ("windowactivate", "click", "type", "key")))
+        self.assertEqual(calls[0], ["kdotool", "search", "--name", "Avernum"])
+        self.assertEqual([command[1] for command in calls], ["search", "getwindowname", "getwindowgeometry", "getactivewindow"])
+        self.assertFalse(any(command[1] in {"windowactivate", "click", "type", "key"} for command in calls))
+
+    def test_report_contains_dimensions_only_for_single_exact_title(self):
+        result = dialog.evaluate_candidate([GOOD_WINDOW], GOOD_WINDOW.window_id, wayland_kde=True)
+        self.assertEqual(result["observed_window_dimensions"], {"width": 400, "height": 554})
+        self.assertNotIn("x", result["observed_window_dimensions"])
+        self.assertNotIn("y", result["observed_window_dimensions"])
 
     def test_non_wayland_kde_is_blocked(self):
         result = dialog.evaluate_candidate([GOOD_WINDOW], GOOD_WINDOW.window_id, wayland_kde=False)
