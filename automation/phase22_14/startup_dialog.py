@@ -44,13 +44,15 @@ def normalize_window_id(value: str | None) -> str | None:
 
 
 def parse_geometry(output: str) -> dict[str, int] | None:
-    # kdotool on KDE Plasma 6 commonly prints Position: x,y / Geometry: WxH.
     pos = re.search(r"Position:\s*\(?\s*(-?\d+)\s*[, ]\s*(-?\d+)", output, re.IGNORECASE)
     size = re.search(r"Geometry:\s*(\d+)\s*[xX]\s*(\d+)", output, re.IGNORECASE)
     if pos and size:
         x, y = map(int, pos.groups())
         width, height = map(int, size.groups())
-        return {"x": x, "y": y, "width": width, "height": height} if width > 0 and height > 0 else None
+        if width > 0 and height > 0:
+            return {"x": x, "y": y, "width": width, "height": height}
+        return None
+
     values: dict[str, int] = {}
     for key in GEOMETRY_KEYS:
         match = re.search(rf"\b{key}\s*:\s*(-?\d+)\b", output, re.IGNORECASE)
@@ -127,7 +129,7 @@ def evaluate_candidate(
         "window_id_format_ok": id_format_ok,
         "active_window_match": active_match,
         "geometry_matches_reference": geometry_match,
-        "observed_window_dimensions": {"width": target.width, "height": target.height} if target else None,
+        "observed_window_dimensions": ({"width": target.width, "height": target.height} if target else None),
         "candidate_points_inside_window": points_inside,
         "reference_image_size": {"width": REFERENCE_IMAGE_SIZE[0], "height": REFERENCE_IMAGE_SIZE[1]},
         "reference_dialog_geometry": dict(REFERENCE_DIALOG),
